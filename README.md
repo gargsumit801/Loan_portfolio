@@ -16,11 +16,10 @@ This repository contains a Streamlit dashboard for loan portfolio visualization 
 pip install -r requirements.txt
 ```
 
-2. To load data from SQL, set environment variables:
+2. To load data from CSV, set the path of your CSV file if it is not in the app folder:
 
 ```bash
-export DATABASE_URL='mysql+pymysql://Sumit_Kumar_Garg:SuMKgT%2302@192.168.93.20/dwh'
-export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
+export CSV_PATH='C:\\Users\\UHF5350\\Downloads\\Loan_portfolio.csv'
 ```
 
 3. Run the app locally:
@@ -29,7 +28,7 @@ export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
 streamlit run app.py
 ```
 
-> If you use SQL, the deployment environment must be able to reach `192.168.93.20:3306`. If the host is not reachable, the app will show a connection error and allow local CSV upload as a fallback.
+> The app loads data from CSV. If the file is not present at the configured path, it will prompt for a local CSV upload.
 
 ## Deployment
 
@@ -42,5 +41,6 @@ The app auto-refreshes every 10 minutes by reloading the browser page.
 
 ## Notes
 
-- The app loads data from SQL by default. If SQL cannot connect, it will prompt for a local CSV upload as a fallback.
+- The app loads data from CSV. By default it looks for `C:\\Users\\UHF5350\\Downloads\\Loan_portfolio.csv` or `Loan_portfolio.csv` in the app folder.
+- Set `CSV_PATH` if your file is in a different location.
 - Once deployed, share the generated URL with your team.
