@@ -29,13 +29,7 @@ export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
 streamlit run app.py
 ```
 
-4. Run the app locally:
-
-```bash
-streamlit run app.py
-```
-
-> If you use SQL, the deployment environment must be able to reach `192.168.93.20:3306`. If the host is not reachable, the app will show a connection error.
+> If you use SQL, the deployment environment must be able to reach `192.168.93.20:3306`. If the host is not reachable, the app will show a connection error and allow local CSV upload as a fallback.
 
 ## Deployment
 
@@ -48,5 +42,5 @@ The app auto-refreshes every 10 minutes by reloading the browser page.
 
 ## Notes
 
-- This app loads data only from SQL. The deployment environment must be able to reach the MySQL host.
+- The app loads data from SQL by default. If SQL cannot connect, it will prompt for a local CSV upload as a fallback.
 - Once deployed, share the generated URL with your team.

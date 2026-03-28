@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
@@ -23,12 +24,20 @@ SQL_QUERY = os.getenv(
     "select * from `loan-portfolio-mapping-data-2 (1)`;",
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+DATA_URL = os.getenv("DATABASE_URL")
+if not DATA_URL:
     password = quote_plus(MYSQL_PASSWORD)
-    DATABASE_URL = (
+    DATA_URL = (
         f"mysql+pymysql://{MYSQL_USER}:{password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
     )
+
+DATA_FILE = os.getenv("DATA_FILE", "Loan_portfolio.csv")
+DATA_PATH = Path(__file__).parent / DATA_FILE
+
+@st.cache_data(ttl=600)
+def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
+    return pd.read_csv(csv_path)
+
 
 @st.cache_data(ttl=600)
 def load_data_from_sql(database_url: str, query: str) -> pd.DataFrame:
@@ -116,16 +125,23 @@ def main():
     st.components.v1.html(refresh_script, height=0)
 
     try:
-        df = load_data_from_sql(DATABASE_URL, SQL_QUERY)
+        df = load_data_from_sql(DATA_URL, SQL_QUERY)
         st.sidebar.success("Loaded data from SQL source.")
     except Exception as exc:
         st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
         st.sidebar.exception(exc)
-        st.error(
+        st.warning(
             "Unable to connect to the SQL server. "
-            "Please verify that the database host is reachable from this deployment environment."
+            "If this is a local test machine, you can place `Loan_portfolio.csv` in the app folder or upload a CSV file now."
         )
-        st.stop()
+        if DATA_PATH.exists():
+            df = load_data_from_csv(DATA_PATH)
+            st.info(f"Loaded fallback CSV from {DATA_PATH}.")
+        else:
+            uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
+            if uploaded_file is None:
+                st.stop()
+            df = pd.read_csv(uploaded_file)
 
     df.columns = df.columns.str.strip()
 
