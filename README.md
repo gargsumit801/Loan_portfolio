@@ -19,12 +19,15 @@ pip install -r requirements.txt
 2. To load data from SQL, set environment variables:
 
 ```bash
-export DATA_SOURCE=sql
 export DATABASE_URL='mysql+pymysql://Sumit_Kumar_Garg:SuMKgT%2302@192.168.93.20/dwh'
 export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
 ```
 
-3. Otherwise, place your `Loan_portfolio.csv` file in the repository root or upload a CSV when prompted.
+3. Run the app locally:
+
+```bash
+streamlit run app.py
+```
 
 4. Run the app locally:
 
@@ -45,5 +48,5 @@ The app auto-refreshes every 10 minutes by reloading the browser page.
 
 ## Notes
 
-- If `Loan_portfolio.csv` is not present in the repo, the app will prompt you to upload a CSV file.
+- This app loads data only from SQL. The deployment environment must be able to reach the MySQL host.
 - Once deployed, share the generated URL with your team.

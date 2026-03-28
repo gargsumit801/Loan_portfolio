@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
@@ -14,9 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DATA_SOURCE = os.getenv("DATA_SOURCE", "sql").lower()
-DATA_FILE = os.getenv("DATA_FILE", "Loan_portfolio.csv")
-DATA_PATH = Path(__file__).parent / DATA_FILE
 MYSQL_USER = os.getenv("MYSQL_USER", "Sumit_Kumar_Garg")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "SuMKgT#02")
 MYSQL_HOST = os.getenv("MYSQL_HOST", "192.168.93.20")
@@ -33,11 +29,6 @@ if not DATABASE_URL:
     DATABASE_URL = (
         f"mysql+pymysql://{MYSQL_USER}:{password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
     )
-
-@st.cache_data(ttl=600)
-def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
-    return pd.read_csv(csv_path)
-
 
 @st.cache_data(ttl=600)
 def load_data_from_sql(database_url: str, query: str) -> pd.DataFrame:
@@ -124,45 +115,23 @@ def main():
     refresh_script = "<script>setTimeout(()=>window.location.reload(), 600000);</script>"
     st.components.v1.html(refresh_script, height=0)
 
-    selected_source = st.sidebar.radio(
-        "Data source",
-        options=["SQL", "CSV"],
-        index=0 if DATA_SOURCE == "sql" else 1,
-    ).lower()
-
-    if selected_source == "sql":
-        try:
-            df = load_data_from_sql(DATABASE_URL, SQL_QUERY)
-            st.sidebar.success("Loaded data from SQL source.")
-        except Exception as exc:
-            st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
-            st.sidebar.exception(exc)
-            st.error(
-                "Unable to connect to the SQL server. "
-                "Please verify that the database host is reachable from this deployment environment."
-            )
-            st.stop()
-    else:
-        if DATA_PATH.exists():
-            df = load_data_from_csv(DATA_PATH)
-        else:
-            st.warning(
-                f"Data file not found at `{DATA_PATH}`. Upload a CSV file or place `Loan_portfolio.csv` in the app folder."
-            )
-            uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
-            if uploaded_file is None:
-                st.stop()
-            df = pd.read_csv(uploaded_file)
+    try:
+        df = load_data_from_sql(DATABASE_URL, SQL_QUERY)
+        st.sidebar.success("Loaded data from SQL source.")
+    except Exception as exc:
+        st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
+        st.sidebar.exception(exc)
+        st.error(
+            "Unable to connect to the SQL server. "
+            "Please verify that the database host is reachable from this deployment environment."
+        )
+        st.stop()
 
     df.columns = df.columns.str.strip()
 
     with st.sidebar:
         st.header("Filters")
-        st.caption(
-            "Data will load from SQL using DATABASE_URL and SQL_QUERY."
-            if selected_source == "sql"
-            else "Data will load from a local CSV file or upload."
-        )
+        st.caption("Data will load from SQL using DATABASE_URL and SQL_QUERY.")
 
         state_filter = st.multiselect(
             "Select State", options=sorted(df["State"].dropna().unique()),
