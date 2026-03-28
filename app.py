@@ -39,6 +39,24 @@ def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
+def build_database_url(user: str, password: str, host: str, port: str, db_name: str) -> str:
+    return f"mysql+pymysql://{user}:{quote_plus(password)}@{host}:{port}/{db_name}"
+
+
+def test_db_connection(database_url: str) -> tuple[bool, str]:
+    try:
+        engine = create_engine(
+            database_url,
+            connect_args={"connect_timeout": 5},
+            pool_pre_ping=True,
+        )
+        with engine.connect() as connection:
+            pass
+        return True, "Connection succeeded."
+    except Exception as exc:
+        return False, str(exc)
+
+
 @st.cache_data(ttl=600)
 def load_data_from_sql(database_url: str, query: str) -> pd.DataFrame:
     engine = create_engine(
@@ -124,14 +142,30 @@ def main():
     refresh_script = "<script>setTimeout(()=>window.location.reload(), 600000);</script>"
     st.components.v1.html(refresh_script, height=0)
 
+    with st.sidebar.expander("Database connection"):
+        host = st.text_input("MySQL host", value=MYSQL_HOST)
+        port = st.text_input("MySQL port", value=MYSQL_PORT)
+        user = st.text_input("MySQL user", value=MYSQL_USER)
+        password = st.text_input("MySQL password", value=MYSQL_PASSWORD, type="password")
+        database = st.text_input("MySQL database", value=MYSQL_DB)
+        query = st.text_area("SQL query", value=SQL_QUERY, height=120)
+        connection_url = build_database_url(user, password, host, port, database)
+
+        if st.button("Test connection"):
+            ok, message = test_db_connection(connection_url)
+            if ok:
+                st.success(message)
+            else:
+                st.error(message)
+
     try:
-        df = load_data_from_sql(DATA_URL, SQL_QUERY)
+        df = load_data_from_sql(connection_url, query)
         st.sidebar.success("Loaded data from SQL source.")
     except Exception as exc:
-        st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
+        st.sidebar.error("SQL load failed. Check the SQL settings above.")
         st.sidebar.exception(exc)
         st.warning(
-            "Unable to connect to the SQL server. "
+            "Unable to connect to the SQL server from this host. "
             "If this is a local test machine, you can place `Loan_portfolio.csv` in the app folder or upload a CSV file now."
         )
         if DATA_PATH.exists():
@@ -142,6 +176,11 @@ def main():
             if uploaded_file is None:
                 st.stop()
             df = pd.read_csv(uploaded_file)
+
+    SQL_QUERY = query
+    DATA_URL = connection_url
+
+    df.columns = df.columns.str.strip()
 
     df.columns = df.columns.str.strip()
 
