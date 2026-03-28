@@ -32,6 +32,8 @@ export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
 streamlit run app.py
 ```
 
+> If you use SQL, the deployment environment must be able to reach `192.168.93.20:3306`. If the host is not reachable, the app will show a connection error.
+
 ## Deployment
 
 To share the dashboard with your office:

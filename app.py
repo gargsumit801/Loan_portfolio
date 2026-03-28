@@ -6,6 +6,7 @@ import pandas as pd
 import folium
 import streamlit as st
 from sqlalchemy import create_engine
+from urllib.parse import quote_plus
 
 st.set_page_config(
     page_title="Loan Portfolio Dashboard",
@@ -13,17 +14,25 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DATA_SOURCE = os.getenv("DATA_SOURCE", "csv").lower()
+DATA_SOURCE = os.getenv("DATA_SOURCE", "sql").lower()
 DATA_FILE = os.getenv("DATA_FILE", "Loan_portfolio.csv")
 DATA_PATH = Path(__file__).parent / DATA_FILE
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "mysql+pymysql://Sumit_Kumar_Garg:SuMKgT%2302@192.168.93.20/dwh",
-)
+MYSQL_USER = os.getenv("MYSQL_USER", "Sumit_Kumar_Garg")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "SuMKgT#02")
+MYSQL_HOST = os.getenv("MYSQL_HOST", "192.168.93.20")
+MYSQL_PORT = os.getenv("MYSQL_PORT", "3306")
+MYSQL_DB = os.getenv("MYSQL_DB", "dwh")
 SQL_QUERY = os.getenv(
     "SQL_QUERY",
     "select * from `loan-portfolio-mapping-data-2 (1)`;",
 )
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    password = quote_plus(MYSQL_PASSWORD)
+    DATABASE_URL = (
+        f"mysql+pymysql://{MYSQL_USER}:{password}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    )
 
 @st.cache_data(ttl=600)
 def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
@@ -32,7 +41,11 @@ def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
 
 @st.cache_data(ttl=600)
 def load_data_from_sql(database_url: str, query: str) -> pd.DataFrame:
-    engine = create_engine(database_url)
+    engine = create_engine(
+        database_url,
+        connect_args={"connect_timeout": 10},
+        pool_pre_ping=True,
+    )
     with engine.connect() as connection:
         return pd.read_sql_query(query, connection)
 
@@ -124,17 +137,11 @@ def main():
         except Exception as exc:
             st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
             st.sidebar.exception(exc)
-            if DATA_PATH.exists():
-                st.sidebar.info("Falling back to local CSV file.")
-                df = load_data_from_csv(DATA_PATH)
-            else:
-                st.warning(
-                    f"Data file not found at `{DATA_PATH}`. Upload a CSV file or place `Loan_portfolio.csv` in the app folder."
-                )
-                uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
-                if uploaded_file is None:
-                    st.stop()
-                df = pd.read_csv(uploaded_file)
+            st.error(
+                "Unable to connect to the SQL server. "
+                "Please verify that the database host is reachable from this deployment environment."
+            )
+            st.stop()
     else:
         if DATA_PATH.exists():
             df = load_data_from_csv(DATA_PATH)
