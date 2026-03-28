@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import folium
 import streamlit as st
+from sqlalchemy import create_engine
 
 st.set_page_config(
     page_title="Loan Portfolio Dashboard",
@@ -12,13 +13,28 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+DATA_SOURCE = os.getenv("DATA_SOURCE", "csv").lower()
 DATA_FILE = os.getenv("DATA_FILE", "Loan_portfolio.csv")
 DATA_PATH = Path(__file__).parent / DATA_FILE
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://Sumit_Kumar_Garg:SuMKgT%2302@192.168.93.20/dwh",
+)
+SQL_QUERY = os.getenv(
+    "SQL_QUERY",
+    "select * from `loan-portfolio-mapping-data-2 (1)`;",
+)
 
-@st.cache_data
-def load_data(csv_path: Path) -> pd.DataFrame:
-    df = pd.read_csv(csv_path)
-    return df
+@st.cache_data(ttl=600)
+def load_data_from_csv(csv_path: Path) -> pd.DataFrame:
+    return pd.read_csv(csv_path)
+
+
+@st.cache_data(ttl=600)
+def load_data_from_sql(database_url: str, query: str) -> pd.DataFrame:
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        return pd.read_sql_query(query, connection)
 
 
 def create_map(df: pd.DataFrame) -> folium.Map:
@@ -95,21 +111,52 @@ def main():
     refresh_script = "<script>setTimeout(()=>window.location.reload(), 600000);</script>"
     st.components.v1.html(refresh_script, height=0)
 
-    if DATA_PATH.exists():
-        df = load_data(DATA_PATH)
+    selected_source = st.sidebar.radio(
+        "Data source",
+        options=["SQL", "CSV"],
+        index=0 if DATA_SOURCE == "sql" else 1,
+    ).lower()
+
+    if selected_source == "sql":
+        try:
+            df = load_data_from_sql(DATABASE_URL, SQL_QUERY)
+            st.sidebar.success("Loaded data from SQL source.")
+        except Exception as exc:
+            st.sidebar.error("SQL load failed. Check DATABASE_URL and SQL_QUERY.")
+            st.sidebar.exception(exc)
+            if DATA_PATH.exists():
+                st.sidebar.info("Falling back to local CSV file.")
+                df = load_data_from_csv(DATA_PATH)
+            else:
+                st.warning(
+                    f"Data file not found at `{DATA_PATH}`. Upload a CSV file or place `Loan_portfolio.csv` in the app folder."
+                )
+                uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
+                if uploaded_file is None:
+                    st.stop()
+                df = pd.read_csv(uploaded_file)
     else:
-        st.warning(
-            f"Data file not found at `{DATA_PATH}`. Upload a CSV file or place `Loan_portfolio.csv` in the app folder."
-        )
-        uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
-        if uploaded_file is None:
-            st.stop()
-        df = pd.read_csv(uploaded_file)
+        if DATA_PATH.exists():
+            df = load_data_from_csv(DATA_PATH)
+        else:
+            st.warning(
+                f"Data file not found at `{DATA_PATH}`. Upload a CSV file or place `Loan_portfolio.csv` in the app folder."
+            )
+            uploaded_file = st.file_uploader("Upload loan portfolio CSV", type=["csv"])
+            if uploaded_file is None:
+                st.stop()
+            df = pd.read_csv(uploaded_file)
 
     df.columns = df.columns.str.strip()
 
     with st.sidebar:
         st.header("Filters")
+        st.caption(
+            "Data will load from SQL using DATABASE_URL and SQL_QUERY."
+            if selected_source == "sql"
+            else "Data will load from a local CSV file or upload."
+        )
+
         state_filter = st.multiselect(
             "Select State", options=sorted(df["State"].dropna().unique()),
             default=sorted(df["State"].dropna().unique())

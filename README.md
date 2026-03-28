@@ -10,14 +10,23 @@ This repository contains a Streamlit dashboard for loan portfolio visualization 
 
 ## Setup
 
-1. Place your `Loan_portfolio.csv` file in the repository root.
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Run the app locally:
+2. To load data from SQL, set environment variables:
+
+```bash
+export DATA_SOURCE=sql
+export DATABASE_URL='mysql+pymysql://Sumit_Kumar_Garg:SuMKgT%2302@192.168.93.20/dwh'
+export SQL_QUERY='select * from `loan-portfolio-mapping-data-2 (1)`;'
+```
+
+3. Otherwise, place your `Loan_portfolio.csv` file in the repository root or upload a CSV when prompted.
+
+4. Run the app locally:
 
 ```bash
 streamlit run app.py
